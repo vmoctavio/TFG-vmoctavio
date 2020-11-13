@@ -1,21 +1,37 @@
 # -----------------------------------------------------------------------------------------------
-# Programa: TFGVOP_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+# Programa: TFGVOP_train_model
 # Autor: vmoctavio
-# Fecha creación: 12/10/2019
-# Descripción: Proceso para detectar plagas en la hoja de la vid utilizando una red ResNet152V2
+# Fecha creación: 12/10/2020
+# Descripción: Proceso para detectar plagas en la hoja de la vid utilizando una red vgg16
 #              Los datos origen estarán en "directory_root", dentro de una estructura de 
 #              carpetas, una por cada una de las diferentes plagas a detectar.
+#  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+#  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+#  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+#  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+#  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+#  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+#  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+#  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 # -----------------------------------------------------------------------------------------------
 #
 # -----------------------------------------------------------------------------------------------
 # Imports necesarios
 # -----------------------------------------------------------------------------------------------
+##
+# Entorno de trabajo. Se utiliza este por las limitaciones de tensorflow para usar GPU en ordenadores MAC
+#import plaidml.keras
+# Usar comandos del sistema operativo ver si esto se borra
+import os
+#plaidml.keras.install_backend()
+#os.environ["KERAS_BACKEND"] = "plaidml.keras.backend"
 #
+import tensorflow as tf
 # API de alto nivel para procesos de Deep Learning
 import keras
 #
 # Uso de funciones del backend
-from keras import backend as K
+import keras.backend as K
 #
 # Uso de funciones de manejo de imágenes
 from keras.preprocessing import image
@@ -29,9 +45,6 @@ from keras.utils import to_categorical
 # Optimizar para compilar un modelo
 from keras.optimizers import Adam
 #
-# Usar comandos del sistema operativo ver si esto se borra
-import os
-#
 # Manejo de arrays 
 import numpy as np
 #
@@ -44,13 +57,17 @@ import math
 # Librería para generar gráficas
 import matplotlib.pyplot as plt
 #
-# Entorno de trabajo para redes deep learning
-import tensorflow as tf
-#
-# Arquitectura de red a probar
-from tensorflow.keras.applications import ResNet152V2
+# Arquitecturaa de red a probar
+from tensorflow.keras.applications import VGG16
+from tensorflow.keras.applications import VGG19
+from tensorflow.keras.applications import DenseNet121
+from tensorflow.keras.applications import InceptionResNetV2
+from tensorflow.keras.applications import ResNet50
+from tensorflow.keras.applications import InceptionV3
+from tensorflow.keras.applications import Xception
 #
 # Convierte un modelo de Keras a diagrama y lo guarda en un archivo
+#from tensorflow.keras.utils import plot_model 
 from tensorflow.keras.utils import plot_model 
 #
 # Dividir un dataset en dos
@@ -71,6 +88,9 @@ import seaborn as sn
 # Librería para leer archivo de configuración
 import configparser
 #
+# Librería para leer parámetros de línea de comandos
+import argparse
+#
 # Módulo para control de excepciones
 import sys
 #
@@ -81,6 +101,15 @@ print("[INFO]",
     datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     "Inicio del proceso",
     os.path.basename(__file__))
+#
+# -----------------------------------------------------------------------------------------------
+# Inicio del proceso
+# -----------------------------------------------------------------------------------------------
+argumentos = argparse.ArgumentParser()
+argumentos.add_argument("-modelo", "--modelo", type=str, default="vgg16",
+	help="Nombre del modelo a entrenar")
+v_argumentos = vars(argumentos.parse_args())
+#
 #
 # -----------------------------------------------------------------------------------------------
 # Comprobamos si existe archivo ini y en caso contrario paramos el programa
@@ -132,11 +161,35 @@ VALID_SIZE = float(config.get('config','VALID_SIZE'))
 RANDOM_STATE = int(config.get('config','RANDOM_STATE'))
 # Training progress
 VERBOSE = int(config.get('config','VERBOSE'))
+# Modelos
+MODELS = {
+    "vgg16": VGG16,
+    "vgg19": VGG19,
+    "DenseNet": DenseNet121,
+    "InceptionResNetV2": InceptionResNetV2,
+    "resnet": ResNet50,
+    "InceptionV3": InceptionV3,
+    "Xception": Xception   
+}
+#
+# -----------------------------------------------------------------------------------------------
+# Verificamos si se trata de un modelo válido
+# -----------------------------------------------------------------------------------------------
+if v_argumentos["modelo"] not in MODELS.keys():
+    print("[INFO]", 
+        datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "El argumento --modelo debe tener uno de los modelos válido: vgg16, vgg19, DenseNet201, Inception, ResNetV2, resnet")
+    quit()
+#
+print("[INFO]", 
+    datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    "Modelo: ",v_argumentos["modelo"])
 #
 # -----------------------------------------------------------------------------------------------
 # Inicialización de variables
 # -----------------------------------------------------------------------------------------------
 #
+nombre_modelo=v_argumentos["modelo"]
 image_list=[]       # array de array's resultado de convertir las imágenes del directorio
 image_labels=[]     # array de array's de etiquetas
 labels=[]           # array con las distintas etiquetas del dataset
@@ -174,7 +227,7 @@ n_classes = len(labels)
 # Convertir la lista de imágenes y etiquetas en arrays Numpy
 # -----------------------------------------------------------------------------------------------
 #
-np_image_list = np.array(image_list, dtype=np.uint8) 
+np_image_list = np.array(image_list, dtype=np.uint8)
 y = np.array(image_labels)
 #
 # -----------------------------------------------------------------------------------------------
@@ -262,7 +315,7 @@ print("[INFO]",
 # Inicialización archivo de registro (LOG_DIR) y Tensorboard 
 # -----------------------------------------------------------------------------------------------
 #
-LOG_DIR=directory_log + 'ResNet152V2_' + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+LOG_DIR=directory_log + v_argumentos["modelo"] + '_' + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 # Frecuencia (en epochs) a la que se calculan los histogramas de activación para las capas del modelo.
 v_histogram_freq=1  
 #
@@ -289,11 +342,11 @@ if K.image_data_format() == "channels_first":
     chanDim = 1
 #
 # -----------------------------------------------------------------------------------------------
-# Función para crear el modelo ResNet152V2
+# Función para crear el modelo correspondiente
 # -----------------------------------------------------------------------------------------------
 #
-def create_ResNet152V2():
-    model = ResNet152V2(include_top=True,       # Incluir las 3 capas totalmente conectadas en la parte superior de la red
+def create_network():
+    model = MODELS[v_argumentos["modelo"]](include_top=True,       # Incluir las 3 capas totalmente conectadas en la parte superior de la red
                         weights=None,           # Inicialización random (no partir de pre-entrenadas de imagenet)
                         input_tensor=None,      # No usar tensor como entrada de imágenes
                         input_shape=inputShape, # Resolución de las imágenes de entrada
@@ -305,28 +358,40 @@ def create_ResNet152V2():
 # Llamada a la función para crear el modelo
 # -----------------------------------------------------------------------------------------------
 #
-ResNet152V2_model = create_ResNet152V2()  
+# 
+network = create_network()  
 #
 # -----------------------------------------------------------------------------------------------
 # Inicializa parámetros para el optimizador ADAM 
 # -----------------------------------------------------------------------------------------------
-#
 opt = tf.keras.optimizers.Adam(lr=INIT_LR,                  # Initial Learning Rate
-                               decay=INIT_LR / EPOCHS)      # Disminución de Learning Rate 
+                            decay=INIT_LR / EPOCHS)     # Disminución de Learning Rate 
+#                            momentum=0.9,                 # para probar resnet50
+#                            nesterov=True)                # para probar resnet50
 #
+# -----------------------------------------------------------------------------------------------
+# Inicializa parámetros para el optimizador ADAM 
+# -----------------------------------------------------------------------------------------------
+# loss_function = keras.losses.SparseCategoricalCrossentropy(from_logits=True,name="sparse_categorical_crossentropy")
+#loss_function='mean_absolute_error'       # Función de pérdida
+#loss_function='binary_crossentropy'       # Función de pérdida
+loss_function='categorical_crossentropy'       # Función de pérdida   es la que tiene sentido. tb se usa to_categorical
+#loss_function='mean_squared_error'       # Función de pérdida
+#loss_function='sparse_categorical_crossentropy'       # Función de pérdida
+# 
 # -----------------------------------------------------------------------------------------------
 # Configuración / compilación del proceso de aprendizaje
 # -----------------------------------------------------------------------------------------------
 #
-ResNet152V2_model.compile(loss='categorical_crossentropy',    # Función de pérdida
-                    optimizer=opt,                      # Optimizador 
-                    metrics=['acc', 'mse'])             # Métricas del proceso 
+network.compile(loss=loss_function,                     # Función de pérdida
+                optimizer=opt,                          # Optimizador 
+                metrics=['acc', 'mse'])                 # Métricas del proceso 
 #
 # -----------------------------------------------------------------------------------------------
 # Imprime una representación resumida del modelo
 # -----------------------------------------------------------------------------------------------
 #
-ResNet152V2_model.summary()
+network.summary()
 #
 # -----------------------------------------------------------------------------------------------
 # Creamos el directorio destino de las gráficas, si no existe 
@@ -340,65 +405,63 @@ except:
 # Convierte un modelo de Keras a diagrama y lo guarda en un archivo
 # -----------------------------------------------------------------------------------------------
 #
-tf.keras.utils.plot_model(model=ResNet152V2_model,
-                       to_file=directory_log + 'modelos/' + 'Plotmodel_ResNet152V2.png',
-                       show_shapes=True,
-                       show_layer_names=True,
-                       rankdir='TB',
-                       expand_nested=True,
-                       dpi=96)
+tf.keras.utils.plot_model(model=network,
+                        to_file=directory_log + 'modelos/' + 'Plotmodel_' + v_argumentos["modelo"] + '.png',
+                        show_shapes=True,
+                        show_layer_names=True,
+                        rankdir='TB')
 #
 # -----------------------------------------------------------------------------------------------
 # Ejecución / entrenamiento de la red
 # -----------------------------------------------------------------------------------------------
 #
-ResNet152V2 = ResNet152V2_model.fit(x_train,                        # Imágenes de entrenamiento
-                        train_label,                                # Etiquetas entrenamiento 
-                        batch_size=BATCH_SIZE,                      # Tamaño del lote 
-                        epochs=EPOCHS,                              # Número de veces que se entrena la red
-                        verbose=VERBOSE,                            # Barra de progreso 
-                        validation_data=(x_valid, valid_label),     # Datos de validación (imágenes y etiquetas)
-                        shuffle=True,                               # Reordenar los lotes al comienzo de cada epoch
-                        callbacks=[tensorboard_callback])           # Configuración de Tensorboard   
+execution_network = network.fit(x_train,                                    # Imágenes de entrenamiento
+                    train_label,                                # Etiquetas entrenamiento 
+                    batch_size=BATCH_SIZE,                      # Tamaño del lote 
+                    epochs=EPOCHS,                              # Número de veces que se entrena la red
+                    verbose=VERBOSE,                            # Barra de progreso 
+                    validation_data=(x_valid, valid_label),     # Datos de validación (imágenes y etiquetas)
+                    shuffle=True,                               # Reordenar los lotes al comienzo de cada epoch
+                    callbacks=[tensorboard_callback])           # Configuración de Tensorboard   
 #
 # -----------------------------------------------------------------------------------------------
 # Representación de las métricas de entrenamiento y validación
 # -----------------------------------------------------------------------------------------------
 #                               Training Accuracy vs Validation Accuracy
 plt.figure(0)  
-plt.plot(ResNet152V2.history['acc'],'r')  
-plt.plot(ResNet152V2.history['val_acc'],'g')  
+plt.plot(execution_network.history['acc'],'r')  
+plt.plot(execution_network.history['val_acc'],'g')  
 plt.xticks(np.arange(0, EPOCHS, INTERVALO))
 plt.rcParams['figure.figsize'] = (8, 6)  
 plt.xlabel("Num of Epochs")  
 plt.ylabel("Accuracy")  
-plt.title("Training Accuracy vs Validation Accuracy en ResNet152V2")  
+plt.title("Training Accuracy vs Validation Accuracy en " + v_argumentos["modelo"])  
 plt.legend(['train','validation'])
-plt.savefig(directory_log + 'modelos/' + 'TrainingAccuracyvsValidationAccuracy_en_ResNet152V2.png')  
+plt.savefig(directory_log + 'modelos/' + 'TrainingAccuracyvsValidationAccuracy_en_' + v_argumentos["modelo"] + '.png')  
 
 #                               Training Loss vs Validation Loss
 plt.figure(1)  
-plt.plot(ResNet152V2.history['loss'],'r')  
-plt.plot(ResNet152V2.history['val_loss'],'g')  
+plt.plot(execution_network.history['loss'],'r')  
+plt.plot(execution_network.history['val_loss'],'g')  
 plt.xticks(np.arange(0, EPOCHS, INTERVALO))
 plt.rcParams['figure.figsize'] = (8, 6)  
 plt.xlabel("Num of Epochs")  
 plt.ylabel("Loss")  
-plt.title("Training Loss vs Validation Loss en ResNet152V2")  
+plt.title("Training Loss vs Validation Loss en " + v_argumentos["modelo"])  
 plt.legend(['train','validation'])
-plt.savefig(directory_log + 'modelos/' + 'TrainingLossvsValidationLoss_en_ResNet152V2.png')  
+plt.savefig(directory_log + 'modelos/' + 'TrainingLossvsValidationLoss_en_' + v_argumentos["modelo"] + '.png')  
 
 #                               Training mse vs Validation mse
 plt.figure(2)  
-plt.plot(ResNet152V2.history['mse'],'r')  
-plt.plot(ResNet152V2.history['val_mse'],'g')  
+plt.plot(execution_network.history['mse'],'r')  
+plt.plot(execution_network.history['val_mse'],'g')  
 plt.xticks(np.arange(0, EPOCHS, INTERVALO))
 plt.rcParams['figure.figsize'] = (8, 6)  
 plt.xlabel("Num of Epochs")  
 plt.ylabel("MSE")  
-plt.title("Training mse vs Validation mse en ResNet152V2")  
+plt.title("Training mse vs Validation mse en " + v_argumentos["modelo"])  
 plt.legend(['train','validation'])
-plt.savefig(directory_log + 'modelos/' + 'TrainingmsevsValidationmse_en_ResNet152V2.png')  
+plt.savefig(directory_log + 'modelos/' + 'TrainingmsevsValidationmse_en_' + v_argumentos["modelo"] + '.png')  
 #
 plt.show()
 #
@@ -409,24 +472,24 @@ plt.show()
 #
 print("[INFO]",
     datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-    "Calculando la precisión del modelo ResNet152V2... ")
+    "Calculando la precisión del modelo " + v_argumentos["modelo"] + "... ")
 #
-resultado_test = ResNet152V2_model.evaluate(x_test,
+resultado_test = network.evaluate(x_test,
                               y_test_one_hot)
 #
+print("[INFO]",      # no sé cuál de las dos opciones .... aqui
+    datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    f"Test Accuracy {nombre_modelo}: {resultado_test[1]*100}")
+#TFGVOP_train_model.py
 print("[INFO]",
     datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-    f"Test Accuracy ResNet152V2: {resultado_test[1]*100}")
-#
-print("[INFO]",
-    datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-    f"Test Loss ResNet152V2: {resultado_test[0]*100}")  # no sé si el loss se multiplica o no
+    f"Test Loss {nombre_modelo}: {resultado_test[0]*100}")  # no sé si el loss se multiplica o no
 #
 # -----------------------------------------------------------------------------------------------
 # Genera las predicciones de salida para el conjunto de datos test
 # -----------------------------------------------------------------------------------------------
 #
-predicted_classes_test = ResNet152V2_model.predict(x_test)
+predicted_classes_test = network.predict(x_test)
 #
 predicted_classes=[]
 for predicted_image in predicted_classes_test:
@@ -455,14 +518,14 @@ print("[INFO]",
 # -----------------------------------------------------------------------------------------------
 # Ejemplos de predicciones correctas
 # -----------------------------------------------------------------------------------------------
-#
+# 
 for i, correct in enumerate(correct[0:9]):
     plt.subplot(3,3,i+1)
-    plt.imshow(x_test[correct].reshape(256,256,3), cmap='gray', interpolation='none')
+    plt.imshow(x_test[correct].reshape(height,width,3), cmap='gray', interpolation='none')
     plt.title("{} / {}".format(labels[predicted_classes[correct]],labels[y_test[correct]]))
     plt.tight_layout()
 #
-plt.savefig(directory_log + 'modelos/' + 'Ejemploprediccionescorrectas_en_ResNet152V2.png')  
+plt.savefig(directory_log + 'modelos/' + 'Ejemploprediccionescorrectas_en_' + v_argumentos["modelo"] + '.png')  
 plt.show()  
 #
 # -----------------------------------------------------------------------------------------------
@@ -479,14 +542,14 @@ print("[INFO]",
 # Ejemplos de predicciones incorrecatas
 # -----------------------------------------------------------------------------------------------
 #
-# print("Calculado / Correcto")
+# print("Calculado / Correcto")      
 for i, incorrect in enumerate(incorrect[0:9]):
     plt.subplot(3,3,i+1)
-    plt.imshow(x_test[incorrect].reshape(256,256,3), cmap='gray', interpolation='none')
+    plt.imshow(x_test[incorrect].reshape(height,width,3), cmap='gray', interpolation='none')
     plt.title("{} / {}".format(labels[predicted_classes[incorrect]],labels[y_test[incorrect]]))
     plt.tight_layout()
 #
-plt.savefig(directory_log + 'modelos/' + 'Ejemploprediccionesincorrectas_en_ResNet152V2.png')  
+plt.savefig(directory_log + 'modelos/' + 'Ejemploprediccionesincorrectas_en_' + v_argumentos["modelo"] + '.png')  
 plt.show()  
 #
 # -----------------------------------------------------------------------------------------------
@@ -495,7 +558,7 @@ plt.show()
 #
 print("[INFO]",
     datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-    "Creando la matriz de confusión ResNet152V2...")
+    "Creando la matriz de confusión " + v_argumentos["modelo"] + "...")
 #
 # -----------------------------------------------------------------------------------------------
 # Creamos la matriz de confusión
@@ -529,8 +592,8 @@ sn.heatmap(predicted_classes_test_confusion_cm_df,
            cmap="YlOrRd",           # Mapa de color amarillo - naranja - rojo
            square=True,             # Forzar tamaño celdas
            annot_kws={"size": 20})  # Tamaño de fuente barra
-plt.title('Matriz de confusión ResNet152V2', pad=100, fontsize = 30, color='Black', fontstyle='italic')
-plt.savefig(directory_log + 'modelos/' + 'Matrizdeconfusion_en_ResNet152V2.png')  
+plt.title('Matriz de confusión ' + v_argumentos["modelo"], pad=100, fontsize = 30, color='Black', fontstyle='italic')
+plt.savefig(directory_log + 'modelos/' + 'Matrizdeconfusion_en_' + v_argumentos["modelo"] + '.png')  
 
 plt.show() 
 #
@@ -557,7 +620,7 @@ print("[INFO]",
 #
 import TFGVOP_save_model
 #
-TFGVOP_save_model.save_model(directory_log,'ResNet152V2',ResNet152V2)
+TFGVOP_save_model.save_model(directory_log,v_argumentos["modelo"],execution_network)
 
 print("[INFO]", 
     datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),

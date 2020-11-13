@@ -38,6 +38,9 @@ import numpy as np
 # Para manipular fechas y horas
 import datetime
 #
+# Funciones matemáticas 
+import math
+#
 # Librería para generar gráficas
 import matplotlib.pyplot as plt
 #
@@ -46,6 +49,9 @@ import tensorflow as tf
 #
 # Arquitectura de red a probar
 from tensorflow.keras.applications import vgg19
+#
+# Convierte un modelo de Keras a diagrama y lo guarda en un archivo
+from tensorflow.keras.utils import plot_model 
 #
 # Dividir un dataset en dos
 from sklearn.model_selection import train_test_split
@@ -62,6 +68,12 @@ import pandas as pd
 # Librería para visualización de datos y gráficos
 import seaborn as sn  
 #
+# Librería para leer archivo de configuración
+import configparser
+#
+# Módulo para control de excepciones
+import sys
+#
 # -----------------------------------------------------------------------------------------------
 # Inicio del proceso
 # -----------------------------------------------------------------------------------------------
@@ -71,36 +83,66 @@ print("[INFO]",
     os.path.basename(__file__))
 #
 # -----------------------------------------------------------------------------------------------
-# Inicialización de variables
+# Comprobamos si existe archivo ini y en caso contrario paramos el programa
 # -----------------------------------------------------------------------------------------------
 #
-# Directorio de trabajo donde está el dataset
-directory_root = '/Users/vmoctavio/TrabajoTFG/keras-tutorial-dataaugmentation/Dataset_vid_prueba_dest/'
-# Directorio de trabajo donde se generan los logs de salida del proceso
-directory_log = '/Users/vmoctavio/Downloads/keras-tutorial/logs/pruebavidcon/borrar/'
+try:
+    os.stat('TFGVOP_Config.ini')
+except Exception as e: # Controla que no exista el fichero
+    print("[ERROR]",
+          datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+          "No existe el fichero de configuración",
+          sys.exc_info()[0],
+          sys.exc_info()[1],
+          sys.exc_info()[2])    
+    sys.exit()
 #
+# -----------------------------------------------------------------------------------------------
+# Leemos archivo ini e inicializamos variables
+# -----------------------------------------------------------------------------------------------
+#
+print("[INFO]", 
+    datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    "Leyendo archivo de configuración...")
+#
+config = configparser.ConfigParser()
+config.read('TFGVOP_Config.ini')
+#
+# Directorio de trabajo donde está el dataset
+directory_root = config.get('config','directory_root')
+# Directorio de trabajo donde se generan los logs de salida del proceso
+directory_log = config.get('config','directory_log')
 # Número de veces que se entrena la red
-EPOCHS = 5
+EPOCHS = int(config.get('config','EPOCHS'))
 # Initial Learning Rate
-INIT_LR = 0.00001   # Comparar diferentes valores
+INIT_LR = float(config.get('config','INIT_LR'))
 # Tamaño del lote
-BATCH_SIZE = 32
+BATCH_SIZE = int(config.get('config','BATCH_SIZE'))
 # Tamaño de la imagen: ancho
-width=256
+width = int(config.get('config','width'))
 # Tamaño de la imagen: alto
-height=256
+height = int(config.get('config','height'))
 # Número de canales de la imagen
-depth=3
+depth = int(config.get('config','depth'))
 # Porcentaje división dataset en train y test
-TEST_SIZE = 0.1
+TEST_SIZE = float(config.get('config','TEST_SIZE'))
 # Porcentaje división dataset en train y validation (a partir del subconjunto anterior)
-VALID_SIZE = 0.2
+VALID_SIZE = float(config.get('config','VALID_SIZE'))
 # Division del dataset no aleatorio
-RANDOM_STATE = 42
+RANDOM_STATE = int(config.get('config','RANDOM_STATE'))
+# Training progress
+VERBOSE = int(config.get('config','VERBOSE'))
+#
+# -----------------------------------------------------------------------------------------------
+# Inicialización de variables
+# -----------------------------------------------------------------------------------------------
 #
 image_list=[]       # array de array's resultado de convertir las imágenes del directorio
 image_labels=[]     # array de array's de etiquetas
 labels=[]           # array con las distintas etiquetas del dataset
+#
+# Intervalo para las coordenadas de la gráfica
+INTERVALO = math.ceil(EPOCHS/10)
 #
 # -----------------------------------------------------------------------------------------------
 # Llamada a la función load_dataset_process para cargar arrays de imágenes y etiquetas
@@ -132,7 +174,7 @@ n_classes = len(labels)
 # Convertir la lista de imágenes y etiquetas en arrays Numpy
 # -----------------------------------------------------------------------------------------------
 #
-np_image_list = np.array(image_list, dtype=np.uint8)  # no sé para qué es lo del / 225.0 o 255????
+np_image_list = np.array(image_list, dtype=np.uint8)
 y = np.array(image_labels)
 #
 # -----------------------------------------------------------------------------------------------
@@ -287,19 +329,6 @@ vgg19_model.compile(loss='categorical_crossentropy',    # Función de pérdida
 vgg19_model.summary()
 #
 # -----------------------------------------------------------------------------------------------
-# Ejecución / entrenamiento de la red
-# -----------------------------------------------------------------------------------------------
-#
-vgg19 = vgg19_model.fit(x_train,                                    # Imágenes de entrenamiento
-                        train_label,                                # Etiquetas entrenamiento 
-                        batch_size=BATCH_SIZE,                      # Tamaño del lote 
-                        epochs=EPOCHS,                              # Número de veces que se entrena la red
-                        verbose=1,                                  # Barra de progreso 
-                        validation_data=(x_valid, valid_label),     # Datos de validación (imágenes y etiquetas)
-                        shuffle=True,                               # Reordenar los lotes al comienzo de cada epoch
-                        callbacks=[tensorboard_callback])           # Configuración de Tensorboard   
-#
-# -----------------------------------------------------------------------------------------------
 # Creamos el directorio destino de las gráficas, si no existe 
 # -----------------------------------------------------------------------------------------------
 try:
@@ -308,13 +337,38 @@ except:
     os.mkdir(directory_log + 'modelos')
 #
 # -----------------------------------------------------------------------------------------------
+# Convierte un modelo de Keras a diagrama y lo guarda en un archivo
+# -----------------------------------------------------------------------------------------------
+#
+tf.keras.utils.plot_model(model=vgg19_model,
+                       to_file=directory_log + 'modelos/' + 'Plotmodel_vgg19.png',
+                       show_shapes=True,
+                       show_layer_names=True,
+                       rankdir='TB',
+                       expand_nested=True,
+                       dpi=96)
+#
+# -----------------------------------------------------------------------------------------------
+# Ejecución / entrenamiento de la red
+# -----------------------------------------------------------------------------------------------
+#
+vgg19 = vgg19_model.fit(x_train,                                    # Imágenes de entrenamiento
+                        train_label,                                # Etiquetas entrenamiento 
+                        batch_size=BATCH_SIZE,                      # Tamaño del lote 
+                        epochs=EPOCHS,                              # Número de veces que se entrena la red
+                        verbose=VERBOSE,                            # Barra de progreso 
+                        validation_data=(x_valid, valid_label),     # Datos de validación (imágenes y etiquetas)
+                        shuffle=True,                               # Reordenar los lotes al comienzo de cada epoch
+                        callbacks=[tensorboard_callback])           # Configuración de Tensorboard   
+#
+# -----------------------------------------------------------------------------------------------
 # Representación de las métricas de entrenamiento y validación
 # -----------------------------------------------------------------------------------------------
 #                               Training Accuracy vs Validation Accuracy
 plt.figure(0)  
 plt.plot(vgg19.history['acc'],'r')  
 plt.plot(vgg19.history['val_acc'],'g')  
-plt.xticks(np.arange(0, EPOCHS, 1.0))  
+plt.xticks(np.arange(0, EPOCHS, INTERVALO))
 plt.rcParams['figure.figsize'] = (8, 6)  
 plt.xlabel("Num of Epochs")  
 plt.ylabel("Accuracy")  
@@ -326,7 +380,7 @@ plt.savefig(directory_log + 'modelos/' + 'TrainingAccuracyvsValidationAccuracy_e
 plt.figure(1)  
 plt.plot(vgg19.history['loss'],'r')  
 plt.plot(vgg19.history['val_loss'],'g')  
-plt.xticks(np.arange(0, EPOCHS, 1.0))  
+plt.xticks(np.arange(0, EPOCHS, INTERVALO))
 plt.rcParams['figure.figsize'] = (8, 6)  
 plt.xlabel("Num of Epochs")  
 plt.ylabel("Loss")  
@@ -338,7 +392,7 @@ plt.savefig(directory_log + 'modelos/' + 'TrainingLossvsValidationLoss_en_vgg19.
 plt.figure(2)  
 plt.plot(vgg19.history['mse'],'r')  
 plt.plot(vgg19.history['val_mse'],'g')  
-plt.xticks(np.arange(0, EPOCHS, 1.0))  
+plt.xticks(np.arange(0, EPOCHS, INTERVALO))
 plt.rcParams['figure.figsize'] = (8, 6)  
 plt.xlabel("Num of Epochs")  
 plt.ylabel("MSE")  

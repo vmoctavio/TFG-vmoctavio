@@ -37,11 +37,8 @@ import datetime
 # Librería para el procesamiento de imágenes
 import cv2
 #
-# Librería para serializar objetos
-#import pickle
-#         -------------- VER SI ESTO DE LABEL SE PUEDE QUITAR -------------------
-# Paquete con clases de transformación (escalado, centrado, normalización, ...) para los vectores
-#from sklearn.preprocessing import LabelBinarizer
+# Librería para leer archivo de configuración
+import configparser
 #
 # -----------------------------------------------------------------------------------------------
 # Inicio del proceso
@@ -52,13 +49,45 @@ print("[INFO]",
     os.path.basename(__file__))
 #
 # -----------------------------------------------------------------------------------------------
+# Comprobamos si existe archivo ini y en caso contrario paramos el programa
+# -----------------------------------------------------------------------------------------------
+#
+try:
+    os.stat('TFGVOP_Config.ini')
+except Exception as e: # Controla que no exista el fichero
+    print("[ERROR]",
+          datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+          "No existe el fichero de configuración",
+          sys.exc_info()[0],
+          sys.exc_info()[1],
+          sys.exc_info()[2])    
+    sys.exit()
+#
+# -----------------------------------------------------------------------------------------------
+# Leemos archivo ini e inicializamos variables
+# -----------------------------------------------------------------------------------------------
+#
+print("[INFO]", 
+    datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    "Leyendo archivo de configuración en ",
+    os.path.basename(__file__))
+#
+config = configparser.ConfigParser()
+config.read('TFGVOP_Config.ini')
+#
+# Tamaño de la imagen: ancho
+width = int(config.get('config','width'))
+# Tamaño de la imagen: alto
+height = int(config.get('config','height'))
+# Número de registros a cargar por directorio
+CONTREG = int(config.get('config','CONTREG'))
+#
+# -----------------------------------------------------------------------------------------------
 # Inicialización de variables
 # -----------------------------------------------------------------------------------------------
 #
-# para qué es esto ESTO IGUAL SE PUEDE BORRAR  ******************************************
-#image_size = 0
 # Tamaño por defecto de las imágenes
-default_image_size = tuple((256, 256))
+default_image_size = tuple((height, width))
 #
 # -----------------------------------------------------------------------------------------------
 # Función para redimensionar una imagen y convertirla en array
@@ -128,23 +157,12 @@ def load_dataset_process(directory_root):
                 if single_plant_disease_image == ".DS_Store" :
                     plant_disease_image_list.remove(single_plant_disease_image)
 #
-#
-#   ojo que aquí tengo puesto 10
-#
-#
-            for image in plant_disease_image_list[:50]: # Nos recorremos todos los archivos de un directorio concreto
+            for image in plant_disease_image_list[:CONTREG]: # Nos recorremos todos los archivos de un directorio concreto
                 image_directory = f"{directory_root}/{plant_disease_folder}/{image}"
                 # Si el archivo tiene extensión jpg o JPG lo tratamos 
                 if image_directory.endswith(".jpg") == True or image_directory.endswith(".JPG") == True:
-                    #  print("[INFO]",
-                    #      datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    #      "Cargando imagen ... ",image)
-                    #      Carga lista de imágenes y etiquetas
                     image_list.append(convert_image_to_array(image_directory))  # Convierte imagen a array
                     image_label.append(cont_labels-1)
-
-
-#                    image_label.append(plant_disease_folder)
                     total_images_origen = total_images_origen + 1 #  contador imágenes por cada directorio
 #
             print("[INFO]", 
@@ -155,44 +173,12 @@ def load_dataset_process(directory_root):
         print("[INFO]",
             datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "Proceso de carga de imágenes completado ")
-
-        #
-        # -----------------------------------------------------------------------------------------------
-        # Obtener el tamño de la imagen
-        # -----------------------------------------------------------------------------------------------
-        #
-        #image_size = len(image_list) ver si esto se puede borar   ****************************
-        #
-        # -----------------------------------------------------------------------------------------------
-        # Transforma las etiquetas de las imágenes mediante LabelBinarizer
-        # -----------------------------------------------------------------------------------------------
-        #
-#        label_binarizer = LabelBinarizer()
-#        label_list = label_binarizer.fit_transform(image_label)
-        # esto creo que podría sobrar, no sé para qué es.
-        # si se quita, también sobraría el input pickle
-#        pickle.dump(label_binarizer,open('label_transform.pkl', 'wb'))    
-    #
+#
         print("[INFO]",
             datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "Total Etiquetas... ",
             cont_labels)
-    #       se puede borar todo lo relacionado con binarizer 
-#        print("[INFO]",
-#            datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-#            "Etiquetas ... ",
-#            label_binarizer.classes_)
-        #
-        # -----------------------------------------------------------------------------------------------
-        # ver si esto se puede borrar
-        # -----------------------------------------------------------------------------------------------
-        #
-        #    np_image_list = np.array(image_list, dtype=np.float16) / 225.0   # no sé para qué es lo del / 225.0
-        #   hace un scalar
-        # -----------------------------------------------------------------------------------------------
-        # xxxxxx
-        # -----------------------------------------------------------------------------------------------
-
+#
     except Exception as e: # Controla cualquier error que se produzca en la función
         print("[ERROR]",
             datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),

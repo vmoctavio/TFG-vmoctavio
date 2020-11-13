@@ -2,7 +2,7 @@
 # Programa: TFGVOP_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 # Autor: vmoctavio
 # Fecha creación: 12/10/2019
-# Descripción: Proceso para detectar plagas en la hoja de la vid utilizando una red ResNet152V2
+# Descripción: Proceso para detectar plagas en la hoja de la vid utilizando una red InceptionResNetV2
 #              Los datos origen estarán en "directory_root", dentro de una estructura de 
 #              carpetas, una por cada una de las diferentes plagas a detectar.
 # -----------------------------------------------------------------------------------------------
@@ -48,7 +48,7 @@ import matplotlib.pyplot as plt
 import tensorflow as tf
 #
 # Arquitectura de red a probar
-from tensorflow.keras.applications import ResNet152V2
+from tensorflow.keras.applications import InceptionResNetV2
 #
 # Convierte un modelo de Keras a diagrama y lo guarda en un archivo
 from tensorflow.keras.utils import plot_model 
@@ -174,7 +174,7 @@ n_classes = len(labels)
 # Convertir la lista de imágenes y etiquetas en arrays Numpy
 # -----------------------------------------------------------------------------------------------
 #
-np_image_list = np.array(image_list, dtype=np.uint8) 
+np_image_list = np.array(image_list, dtype=np.uint8)
 y = np.array(image_labels)
 #
 # -----------------------------------------------------------------------------------------------
@@ -262,7 +262,7 @@ print("[INFO]",
 # Inicialización archivo de registro (LOG_DIR) y Tensorboard 
 # -----------------------------------------------------------------------------------------------
 #
-LOG_DIR=directory_log + 'ResNet152V2_' + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+LOG_DIR=directory_log + 'InceptionResNetV2_' + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 # Frecuencia (en epochs) a la que se calculan los histogramas de activación para las capas del modelo.
 v_histogram_freq=1  
 #
@@ -289,11 +289,11 @@ if K.image_data_format() == "channels_first":
     chanDim = 1
 #
 # -----------------------------------------------------------------------------------------------
-# Función para crear el modelo ResNet152V2
+# Función para crear el modelo InceptionResNetV2
 # -----------------------------------------------------------------------------------------------
 #
-def create_ResNet152V2():
-    model = ResNet152V2(include_top=True,       # Incluir las 3 capas totalmente conectadas en la parte superior de la red
+def create_InceptionResNetV2():
+    model = InceptionResNetV2(include_top=True,       # Incluir las 3 capas totalmente conectadas en la parte superior de la red
                         weights=None,           # Inicialización random (no partir de pre-entrenadas de imagenet)
                         input_tensor=None,      # No usar tensor como entrada de imágenes
                         input_shape=inputShape, # Resolución de las imágenes de entrada
@@ -305,7 +305,7 @@ def create_ResNet152V2():
 # Llamada a la función para crear el modelo
 # -----------------------------------------------------------------------------------------------
 #
-ResNet152V2_model = create_ResNet152V2()  
+InceptionResNetV2_model = create_InceptionResNetV2()  
 #
 # -----------------------------------------------------------------------------------------------
 # Inicializa parámetros para el optimizador ADAM 
@@ -318,7 +318,7 @@ opt = tf.keras.optimizers.Adam(lr=INIT_LR,                  # Initial Learning R
 # Configuración / compilación del proceso de aprendizaje
 # -----------------------------------------------------------------------------------------------
 #
-ResNet152V2_model.compile(loss='categorical_crossentropy',    # Función de pérdida
+InceptionResNetV2_model.compile(loss='categorical_crossentropy',    # Función de pérdida
                     optimizer=opt,                      # Optimizador 
                     metrics=['acc', 'mse'])             # Métricas del proceso 
 #
@@ -326,7 +326,7 @@ ResNet152V2_model.compile(loss='categorical_crossentropy',    # Función de pér
 # Imprime una representación resumida del modelo
 # -----------------------------------------------------------------------------------------------
 #
-ResNet152V2_model.summary()
+InceptionResNetV2_model.summary()
 #
 # -----------------------------------------------------------------------------------------------
 # Creamos el directorio destino de las gráficas, si no existe 
@@ -340,8 +340,8 @@ except:
 # Convierte un modelo de Keras a diagrama y lo guarda en un archivo
 # -----------------------------------------------------------------------------------------------
 #
-tf.keras.utils.plot_model(model=ResNet152V2_model,
-                       to_file=directory_log + 'modelos/' + 'Plotmodel_ResNet152V2.png',
+tf.keras.utils.plot_model(model=InceptionResNetV2_model,
+                       to_file=directory_log + 'modelos/' + 'Plotmodel_InceptionResNetV2.png',
                        show_shapes=True,
                        show_layer_names=True,
                        rankdir='TB',
@@ -352,7 +352,7 @@ tf.keras.utils.plot_model(model=ResNet152V2_model,
 # Ejecución / entrenamiento de la red
 # -----------------------------------------------------------------------------------------------
 #
-ResNet152V2 = ResNet152V2_model.fit(x_train,                        # Imágenes de entrenamiento
+InceptionResNetV2 = InceptionResNetV2_model.fit(x_train,                        # Imágenes de entrenamiento
                         train_label,                                # Etiquetas entrenamiento 
                         batch_size=BATCH_SIZE,                      # Tamaño del lote 
                         epochs=EPOCHS,                              # Número de veces que se entrena la red
@@ -366,39 +366,39 @@ ResNet152V2 = ResNet152V2_model.fit(x_train,                        # Imágenes 
 # -----------------------------------------------------------------------------------------------
 #                               Training Accuracy vs Validation Accuracy
 plt.figure(0)  
-plt.plot(ResNet152V2.history['acc'],'r')  
-plt.plot(ResNet152V2.history['val_acc'],'g')  
+plt.plot(InceptionResNetV2.history['acc'],'r')  
+plt.plot(InceptionResNetV2.history['val_acc'],'g')  
 plt.xticks(np.arange(0, EPOCHS, INTERVALO))
 plt.rcParams['figure.figsize'] = (8, 6)  
 plt.xlabel("Num of Epochs")  
 plt.ylabel("Accuracy")  
-plt.title("Training Accuracy vs Validation Accuracy en ResNet152V2")  
+plt.title("Training Accuracy vs Validation Accuracy en InceptionResNetV2")  
 plt.legend(['train','validation'])
-plt.savefig(directory_log + 'modelos/' + 'TrainingAccuracyvsValidationAccuracy_en_ResNet152V2.png')  
+plt.savefig(directory_log + 'modelos/' + 'TrainingAccuracyvsValidationAccuracy_en_InceptionResNetV2.png')  
 
 #                               Training Loss vs Validation Loss
 plt.figure(1)  
-plt.plot(ResNet152V2.history['loss'],'r')  
-plt.plot(ResNet152V2.history['val_loss'],'g')  
+plt.plot(InceptionResNetV2.history['loss'],'r')  
+plt.plot(InceptionResNetV2.history['val_loss'],'g')  
 plt.xticks(np.arange(0, EPOCHS, INTERVALO))
 plt.rcParams['figure.figsize'] = (8, 6)  
 plt.xlabel("Num of Epochs")  
 plt.ylabel("Loss")  
-plt.title("Training Loss vs Validation Loss en ResNet152V2")  
+plt.title("Training Loss vs Validation Loss en InceptionResNetV2")  
 plt.legend(['train','validation'])
-plt.savefig(directory_log + 'modelos/' + 'TrainingLossvsValidationLoss_en_ResNet152V2.png')  
+plt.savefig(directory_log + 'modelos/' + 'TrainingLossvsValidationLoss_en_InceptionResNetV2.png')  
 
 #                               Training mse vs Validation mse
 plt.figure(2)  
-plt.plot(ResNet152V2.history['mse'],'r')  
-plt.plot(ResNet152V2.history['val_mse'],'g')  
+plt.plot(InceptionResNetV2.history['mse'],'r')  
+plt.plot(InceptionResNetV2.history['val_mse'],'g')  
 plt.xticks(np.arange(0, EPOCHS, INTERVALO))
 plt.rcParams['figure.figsize'] = (8, 6)  
 plt.xlabel("Num of Epochs")  
 plt.ylabel("MSE")  
-plt.title("Training mse vs Validation mse en ResNet152V2")  
+plt.title("Training mse vs Validation mse en InceptionResNetV2")  
 plt.legend(['train','validation'])
-plt.savefig(directory_log + 'modelos/' + 'TrainingmsevsValidationmse_en_ResNet152V2.png')  
+plt.savefig(directory_log + 'modelos/' + 'TrainingmsevsValidationmse_en_InceptionResNetV2.png')  
 #
 plt.show()
 #
@@ -409,24 +409,24 @@ plt.show()
 #
 print("[INFO]",
     datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-    "Calculando la precisión del modelo ResNet152V2... ")
+    "Calculando la precisión del modelo InceptionResNetV2... ")
 #
-resultado_test = ResNet152V2_model.evaluate(x_test,
+resultado_test = InceptionResNetV2_model.evaluate(x_test,
                               y_test_one_hot)
 #
 print("[INFO]",
     datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-    f"Test Accuracy ResNet152V2: {resultado_test[1]*100}")
+    f"Test Accuracy InceptionResNetV2: {resultado_test[1]*100}")
 #
 print("[INFO]",
     datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-    f"Test Loss ResNet152V2: {resultado_test[0]*100}")  # no sé si el loss se multiplica o no
+    f"Test Loss InceptionResNetV2: {resultado_test[0]*100}")  # no sé si el loss se multiplica o no
 #
 # -----------------------------------------------------------------------------------------------
 # Genera las predicciones de salida para el conjunto de datos test
 # -----------------------------------------------------------------------------------------------
 #
-predicted_classes_test = ResNet152V2_model.predict(x_test)
+predicted_classes_test = InceptionResNetV2_model.predict(x_test)
 #
 predicted_classes=[]
 for predicted_image in predicted_classes_test:
@@ -462,7 +462,7 @@ for i, correct in enumerate(correct[0:9]):
     plt.title("{} / {}".format(labels[predicted_classes[correct]],labels[y_test[correct]]))
     plt.tight_layout()
 #
-plt.savefig(directory_log + 'modelos/' + 'Ejemploprediccionescorrectas_en_ResNet152V2.png')  
+plt.savefig(directory_log + 'modelos/' + 'Ejemploprediccionescorrectas_en_InceptionResNetV2.png')  
 plt.show()  
 #
 # -----------------------------------------------------------------------------------------------
@@ -486,7 +486,7 @@ for i, incorrect in enumerate(incorrect[0:9]):
     plt.title("{} / {}".format(labels[predicted_classes[incorrect]],labels[y_test[incorrect]]))
     plt.tight_layout()
 #
-plt.savefig(directory_log + 'modelos/' + 'Ejemploprediccionesincorrectas_en_ResNet152V2.png')  
+plt.savefig(directory_log + 'modelos/' + 'Ejemploprediccionesincorrectas_en_InceptionResNetV2.png')  
 plt.show()  
 #
 # -----------------------------------------------------------------------------------------------
@@ -495,7 +495,7 @@ plt.show()
 #
 print("[INFO]",
     datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-    "Creando la matriz de confusión ResNet152V2...")
+    "Creando la matriz de confusión InceptionResNetV2...")
 #
 # -----------------------------------------------------------------------------------------------
 # Creamos la matriz de confusión
@@ -529,8 +529,8 @@ sn.heatmap(predicted_classes_test_confusion_cm_df,
            cmap="YlOrRd",           # Mapa de color amarillo - naranja - rojo
            square=True,             # Forzar tamaño celdas
            annot_kws={"size": 20})  # Tamaño de fuente barra
-plt.title('Matriz de confusión ResNet152V2', pad=100, fontsize = 30, color='Black', fontstyle='italic')
-plt.savefig(directory_log + 'modelos/' + 'Matrizdeconfusion_en_ResNet152V2.png')  
+plt.title('Matriz de confusión InceptionResNetV2', pad=100, fontsize = 30, color='Black', fontstyle='italic')
+plt.savefig(directory_log + 'modelos/' + 'Matrizdeconfusion_en_InceptionResNetV2.png')  
 
 plt.show() 
 #
@@ -557,7 +557,7 @@ print("[INFO]",
 #
 import TFGVOP_save_model
 #
-TFGVOP_save_model.save_model(directory_log,'ResNet152V2',ResNet152V2)
+TFGVOP_save_model.save_model(directory_log,'InceptionResNetV2',InceptionResNetV2)
 
 print("[INFO]", 
     datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
