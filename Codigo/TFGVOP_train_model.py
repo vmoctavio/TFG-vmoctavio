@@ -2,32 +2,20 @@
 # Programa: TFGVOP_train_model
 # Autor: vmoctavio
 # Fecha creación: 12/10/2020
-# Descripción: Proceso para detectar plagas en la hoja de la vid utilizando una red vgg16
+# Descripción: Proceso para detectar plagas en la hoja de la vid utilizando una red sin entrenar previamente
 #              Los datos origen estarán en "directory_root", dentro de una estructura de 
 #              carpetas, una por cada una de las diferentes plagas a detectar.
-#  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-#  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-#  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-#  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-#  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-#  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-#  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-#  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 # -----------------------------------------------------------------------------------------------
 #
 # -----------------------------------------------------------------------------------------------
 # Imports necesarios
 # -----------------------------------------------------------------------------------------------
 ##
-# Entorno de trabajo. Se utiliza este por las limitaciones de tensorflow para usar GPU en ordenadores MAC
-import plaidml.keras
-# Usar comandos del sistema operativo ver si esto se borra
+# Usar comandos del sistema operativo 
 import os
-plaidml.keras.install_backend()
-os.environ["KERAS_BACKEND"] = "plaidml.keras.backend"
-PLAIDML_USE_STRIPE=1
 #
-# API de alto nivel para procesos de Deep Learning
+# API,s de alto nivel para procesos de Deep Learning
+import tensorflow as tf
 import keras
 #
 # Uso de funciones del backend
@@ -58,19 +46,19 @@ import math
 import matplotlib.pyplot as plt
 #
 # Arquitecturaa de red a probar
-from keras.applications import VGG16
-from keras.applications import VGG19
-from keras.applications import DenseNet121
-from keras.applications import DenseNet169
-from keras.applications import DenseNet201
-from keras.applications import InceptionResNetV2
-from keras.applications import ResNet50
-from keras.applications import InceptionV3
-from keras.applications import Xception
+from tensorflow.keras.applications import VGG16
+from tensorflow.keras.applications import VGG19
+from tensorflow.keras.applications import DenseNet121
+from tensorflow.keras.applications import DenseNet169
+from tensorflow.keras.applications import DenseNet201
+from tensorflow.keras.applications import InceptionResNetV2
+from tensorflow.keras.applications import ResNet50
+from tensorflow.keras.applications import InceptionV3
+from tensorflow.keras.applications import Xception
 #
 # Convierte un modelo de Keras a diagrama y lo guarda en un archivo
 #from tensorflow.keras.utils import plot_model 
-from keras.utils import plot_model 
+from tensorflow.keras.utils import plot_model 
 #
 # Dividir un dataset en dos
 from sklearn.model_selection import train_test_split
@@ -106,7 +94,6 @@ print("[INFO]",
 #
 v_File_Inicio_Proceso = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 v_Hora_Inicio_Proceso = datetime.datetime.now()
-
 #
 # -----------------------------------------------------------------------------------------------
 # Inicio del proceso
@@ -115,7 +102,6 @@ argumentos = argparse.ArgumentParser()
 argumentos.add_argument("-modelo", "--modelo", type=str, default="vgg16",
 	help="Nombre del modelo a entrenar")
 v_argumentos = vars(argumentos.parse_args())
-#
 #
 # -----------------------------------------------------------------------------------------------
 # Comprobamos si existe archivo ini y en caso contrario paramos el programa
@@ -147,6 +133,8 @@ config.read('TFGVOP_Config.ini')
 directory_root = config.get('config','directory_root')
 # Directorio de trabajo donde se generan los logs de salida del proceso
 directory_log = config.get('config','directory_log')
+# Directorio de trabajo donde se generan los modelos de salida del proceso
+directory_modelos = config.get('config','directory_modelos')
 # Número de veces que se entrena la red
 EPOCHS = int(config.get('config','EPOCHS'))
 # Initial Learning Rate
@@ -167,7 +155,7 @@ VALID_SIZE = float(config.get('config','VALID_SIZE'))
 RANDOM_STATE = int(config.get('config','RANDOM_STATE'))
 # Training progress
 VERBOSE = int(config.get('config','VERBOSE'))
-# XXXXX           XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+# Para evitar el "Gradient Value Clipping" 
 CLIPVALUE = float(config.get('config','CLIPVALUE'))
 # Modelos
 MODELS = {
@@ -195,7 +183,6 @@ print("[INFO]",
     "Modelo a entrenar: ",v_argumentos["modelo"])
 
 print("Versión keras",keras.__version__)
-
 #
 # -----------------------------------------------------------------------------------------------
 # Inicialización de variables
@@ -326,7 +313,7 @@ print("[INFO]",
 # -----------------------------------------------------------------------------------------------
 # Inicialización archivo de registro (LOG_DIR) y Tensorboard 
 # -----------------------------------------------------------------------------------------------
-#   esto aquí aqui igual hay que borrarlo que no tiene sentido sin tensorboard
+#  
 LOG_DIR=directory_log + v_argumentos["modelo"] + '_' + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 # Frecuencia (en epochs) a la que se calculan los histogramas de activación para las capas del modelo.
 v_histogram_freq=1  
@@ -336,12 +323,12 @@ print("[INFO]",
     "Generado log en... ",
     LOG_DIR)
 #
-#tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=LOG_DIR,      # Directorio de registro
-#                                                    histogram_freq=v_histogram_freq,       
-#                                                    write_graph=True,       # Si visualizar el gráfico
-#                                                    write_images=True,      # Si visualizar imágenes
-#                                                    update_freq='epoch',    # Las métricas se generan por cada epoch
-#                                                    profile_batch=2)        # Perfilar el segundo lote
+tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=LOG_DIR,      # Directorio de registro
+                                                    histogram_freq=v_histogram_freq,       
+                                                    write_graph=True,       # Si visualizar el gráfico
+                                                    write_images=True,      # Si visualizar imágenes
+                                                    update_freq='epoch',    # Las métricas se generan por cada epoch
+                                                    profile_batch=2)        # Perfilar el segundo lote
 #
 # -----------------------------------------------------------------------------------------------
 # Inicializa input_shape en función del formato de la imagen
@@ -375,9 +362,9 @@ network = create_network()
 # -----------------------------------------------------------------------------------------------
 # Inicializa parámetros para el optimizador ADAM 
 # -----------------------------------------------------------------------------------------------
-opt = keras.optimizers.Adam(lr=INIT_LR,                  # Initial Learning Rate
-                            decay=INIT_LR / EPOCHS,     # Disminución de Learning Rate 
-                            clipvalue=CLIPVALUE)           # ver esto qué es
+opt = tf.keras.optimizers.Adam(lr=INIT_LR,                 # Initial Learning Rate
+                            decay=INIT_LR / EPOCHS,        # Disminución de Learning Rate 
+                            clipvalue=CLIPVALUE)           # Para evitar el "Gradient Value Clipping" 
 #                            momentum=0.9,                 # para probar resnet50
 #                            nesterov=True)                # para probar resnet50
 #
@@ -409,16 +396,21 @@ network.summary()
 # Creamos el directorio destino de las gráficas, si no existe 
 # -----------------------------------------------------------------------------------------------
 try:
-    os.stat(directory_log + 'modelos')
+    os.stat(directory_log)
 except:
-    os.mkdir(directory_log + 'modelos')
+    os.mkdir(directory_log)
+#
+try:
+    os.stat(directory_modelos)
+except:
+    os.mkdir(directory_modelos)
 #
 # -----------------------------------------------------------------------------------------------
 # Convierte un modelo de Keras a diagrama y lo guarda en un archivo
 # -----------------------------------------------------------------------------------------------
 #
-keras.utils.plot_model(model=network,
-                        to_file=directory_log + 'modelos/' + 'Plotmodel_' + v_argumentos["modelo"] + '_' + v_File_Inicio_Proceso  + '.png',
+tf.keras.utils.plot_model(model=network,
+                        to_file=directory_modelos + 'Plotmodel_' + v_argumentos["modelo"] + '_' + v_File_Inicio_Proceso  + '.png',
                         show_shapes=True,
                         show_layer_names=True,
                         rankdir='TB')
@@ -435,8 +427,8 @@ execution_network = network.fit(x_train,                                    # Im
                     epochs=EPOCHS,                              # Número de veces que se entrena la red
                     verbose=VERBOSE,                            # Barra de progreso 
                     validation_data=(x_valid, valid_label),     # Datos de validación (imágenes y etiquetas)
-                    shuffle=True) #,                               # Reordenar los lotes al comienzo de cada epoch
-#                        callbacks=[tensorboard_callback])           # Configuración de Tensorboard  
+                    shuffle=True,                               # Reordenar los lotes al comienzo de cada epoch
+                    callbacks=[tensorboard_callback])           # Configuración de Tensorboard   
 v_Hora_Fin_Network = datetime.datetime.now()
 #
 v_Tiempo_entrenamiento = v_Hora_Fin_Network-v_Hora_Inicio_Network
@@ -459,8 +451,8 @@ plt.xlabel("Num of Epochs")
 plt.ylabel("Accuracy")  
 plt.title("Training Accuracy vs Validation Accuracy en " + v_argumentos["modelo"])  
 plt.legend(['train','validation'])
-plt.savefig(directory_log + 'modelos/' + 'TrainingAccuracyvsValidationAccuracy_' + v_argumentos["modelo"] + '_' + v_File_Inicio_Proceso + '.png')  
-
+plt.savefig(directory_modelos + 'TrainingAccuracyvsValidationAccuracy_' + v_argumentos["modelo"] + '_' + v_File_Inicio_Proceso + '.png')  
+#
 #                               Training Loss vs Validation Loss
 plt.figure(1)  
 plt.plot(execution_network.history['loss'],'r')  
@@ -471,19 +463,19 @@ plt.xlabel("Num of Epochs")
 plt.ylabel("Loss")  
 plt.title("Training Loss vs Validation Loss en " + v_argumentos["modelo"])  
 plt.legend(['train','validation'])
-plt.savefig(directory_log + 'modelos/' + 'TrainingLossvsValidationLoss_' + v_argumentos["modelo"] + '_' + v_File_Inicio_Proceso + '.png')  
-
+plt.savefig(directory_modelos + 'TrainingLossvsValidationLoss_' + v_argumentos["modelo"] + '_' + v_File_Inicio_Proceso + '.png')  
+#
 #                               Training mse vs Validation mse
 plt.figure(2)  
-plt.plot(execution_network.history['mean_squared_error'],'r')  
-plt.plot(execution_network.history['val_mean_squared_error'],'g')  
+plt.plot(execution_network.history['mse'],'r')  
+plt.plot(execution_network.history['val_mse'],'g')  
 plt.xticks(np.arange(0, EPOCHS, INTERVALO))
 plt.rcParams['figure.figsize'] = (8, 6)  
 plt.xlabel("Num of Epochs")  
 plt.ylabel("MSE")  
 plt.title("Training mse vs Validation mse en " + v_argumentos["modelo"])  
 plt.legend(['train','validation'])
-plt.savefig(directory_log + 'modelos/' + 'TrainingmsevsValidationmse_' + v_argumentos["modelo"] + '_' + v_File_Inicio_Proceso + '.png')  
+plt.savefig(directory_modelos + 'TrainingmsevsValidationmse_' + v_argumentos["modelo"] + '_' + v_File_Inicio_Proceso + '.png')  
 #
 plt.show()
 #
@@ -553,13 +545,13 @@ predicciones_correctas = len(correct)
 # Ejemplos de predicciones correctas
 # -----------------------------------------------------------------------------------------------
 # 
-for i, correct in enumerate(correct[0:9]):
-    plt.subplot(3,3,i+1)
+for i, correct in enumerate(correct[:9]):
+    plt.subplot(3, 3, i+1)
     plt.imshow(x_test[correct].reshape(height,width,3), cmap='gray', interpolation='none')
     plt.title("{} / {}".format(labels[predicted_classes[correct]],labels[y_test[correct]]))
     plt.tight_layout()
 #
-plt.savefig(directory_log + 'modelos/' + 'Ejemploprediccionescorrectas_' + v_argumentos["modelo"] + '_' + v_File_Inicio_Proceso + '.png')  
+plt.savefig(directory_modelos + 'Ejemploprediccionescorrectas_' + v_argumentos["modelo"] + '_' + v_File_Inicio_Proceso + '.png')  
 plt.show()  
 #
 # -----------------------------------------------------------------------------------------------
@@ -579,13 +571,13 @@ predicciones_incorrectas = len(incorrect)
 # -----------------------------------------------------------------------------------------------
 #
 # print("Calculado / Correcto")      
-for i, incorrect in enumerate(incorrect[0:9]):
+for i, incorrect in enumerate(incorrect[:9]):
     plt.subplot(3,3,i+1)
     plt.imshow(x_test[incorrect].reshape(height,width,3), cmap='gray', interpolation='none')
     plt.title("{} / {}".format(labels[predicted_classes[incorrect]],labels[y_test[incorrect]]))
     plt.tight_layout()
 #
-plt.savefig(directory_log + 'modelos/' + 'Ejemploprediccionesincorrectas_' + v_argumentos["modelo"] + '_' + v_File_Inicio_Proceso + '.png')  
+plt.savefig(directory_modelos + 'Ejemploprediccionesincorrectas_' + v_argumentos["modelo"] + '_' + v_File_Inicio_Proceso + '.png')  
 plt.show()  
 #
 # -----------------------------------------------------------------------------------------------
@@ -629,7 +621,7 @@ sn.heatmap(predicted_classes_test_confusion_cm_df,
            square=True,             # Forzar tamaño celdas
            annot_kws={"size": 20})  # Tamaño de fuente barra
 plt.title('Matriz de confusión ' + v_argumentos["modelo"], pad=100, fontsize = 30, color='Black', fontstyle='italic')
-plt.savefig(directory_log + 'modelos/' + 'Matrizdeconfusion_' + v_argumentos["modelo"] + '_' + v_File_Inicio_Proceso + '.png')  
+plt.savefig(directory_modelos + 'Matrizdeconfusion_' + v_argumentos["modelo"] + '_' + v_File_Inicio_Proceso + '.png')  
 #
 plt.show() 
 #
@@ -658,8 +650,9 @@ import TFGVOP_save_model
 #
 data = {'Network': v_argumentos["modelo"],
         'Hora Inicio Proceso': v_Hora_Inicio_Proceso.strftime("%Y-%m-%d %H:%M:%S"),
-        'Hora Fin Proceso': v_Hora_Fin_Network.strftime("%Y-%m-%d %H:%M:%S"),
-        'Duración Proceso': str(v_Tiempo_entrenamiento),
+        'Hora Inicio Network': v_Hora_Inicio_Network.strftime("%Y-%m-%d %H:%M:%S"),
+        'Hora Fin Network': v_Hora_Fin_Network.strftime("%Y-%m-%d %H:%M:%S"),
+        'Duración Network': str(v_Tiempo_entrenamiento),
         'Hora Inicio Precisión': v_Hora_Inicio_Precision.strftime("%Y-%m-%d %H:%M:%S"),
         'Hora Fin Precisión': v_Hora_Fin_Precision.strftime("%Y-%m-%d %H:%M:%S"),
         'Duración Precisión': str(v_Tiempo_precision),
@@ -683,7 +676,7 @@ data = {'Network': v_argumentos["modelo"],
         'Etiquetas incorrectas': str(predicciones_incorrectas)
         }
 #
-TFGVOP_save_model.save_model(directory_log,
+TFGVOP_save_model.save_model(directory_modelos,
                             v_argumentos["modelo"] + '_' + v_File_Inicio_Proceso,
                             execution_network,
                             data)

@@ -4,7 +4,7 @@
 # Fecha creación: 12/10/2019
 # Descripción: Función para guardar las estadísticas de un modelo
 #              Parámetors de entrda:
-#                   directory_log: Ruta donde se guardarán los datos del modelo de entrada
+#                   directory_modelos: Ruta donde se guardarán los datos del modelo de entrada
 #                   file_name: Nombre del fichero a guardar
 #                   model: Modelo a guardar
 #                   v_Registro: Datos a guardar
@@ -41,16 +41,16 @@ print("[INFO]",
 # en un archivo con nombre "file_name"
 # -----------------------------------------------------------------------------------------------
 #
-def save_model(directory_log,file_name,model,v_Registro):
+def save_model(directory_modelos,file_name,model,v_Registro):
 #
     try:
         #creamos el directorio destino si no existe 
         try:
-            os.stat(directory_log + 'modelos')
+            os.stat(directory_modelos)
         except:
-            os.mkdir(directory_log + 'modelos')
+            os.mkdir(directory_modelos)
 #
-        with open(directory_log + 'modelos/' + file_name + '.stats', 'wb') as file_modelo:  
+        with open(directory_modelos + file_name + '.stats', 'wb') as file_modelo:  
             pickle.dump(model.history, file_modelo)
 #
         print("[INFO]", 
@@ -68,8 +68,9 @@ def save_model(directory_log,file_name,model,v_Registro):
     try:
         fieldnames = ['Network',
                     'Hora Inicio Proceso',
-                    'Hora Fin Proceso',
-                    'Duración Proceso',
+                    'Hora Inicio Network',
+                    'Hora Fin Network',
+                    'Duración Network',
                     'Hora Inicio Precisión',
                     'Hora Fin Precisión',
                     'Duración Precisión',
@@ -93,13 +94,13 @@ def save_model(directory_log,file_name,model,v_Registro):
                     'Etiquetas incorrectas',
                       ]
 #       creamos el fichero si no existe 
-        if ( not os.path.isfile(directory_log + 'modelos/' + 'results_data.csv')):
-            with open(directory_log + 'modelos/' + 'results_data.csv', 'w') as file_data:  
+        if ( not os.path.isfile(directory_modelos + 'results_data.csv')):
+            with open(directory_modelos + 'results_data.csv', 'w') as file_data:  
                 writer = csv.DictWriter(file_data, fieldnames=fieldnames)
                 writer.writeheader()
                 file_data.close()                
 #       guardamos los resultados
-        with open(directory_log + 'modelos/' + 'results_data.csv', 'a') as file_data:
+        with open(directory_modelos + 'results_data.csv', 'a') as file_data:
             writer = csv.DictWriter(file_data, fieldnames=fieldnames)
             writer.writerows([v_Registro])               
             file_data.close() 
